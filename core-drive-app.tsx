@@ -1,18 +1,31 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import { ChevronLeft, ChevronRight, BarChart3, Users, ArrowUp, ArrowDown, Crown, GripVertical } from "lucide-react"
+import { useState } from "react"
+import { ChevronLeft, ChevronRight, BarChart3, Users, ArrowUp, ArrowDown, GripVertical } from "lucide-react"
+import TextInputComponent from "./text-input-component"
 
 const CoreDriveApp = () => {
   const [currentStep, setCurrentStep] = useState("welcome")
   const [flowType, setFlowType] = useState(null)
   const [teamCode, setTeamCode] = useState("")
   const [email, setEmail] = useState("")
-  const [surveyData, setSurveyData] = useState({
-    rankings: [],
-    qualitative: {},
-    demographics: {},
-  })
+
+  // Simple state for rankings
+  const [rankings, setRankings] = useState([])
+
+  // Simple individual states for each question (like the working test)
+  const [answer1, setAnswer1] = useState("")
+  const [answer2, setAnswer2] = useState("")
+  const [answer3, setAnswer3] = useState("")
+  const [answer4, setAnswer4] = useState("")
+  const [answer5, setAnswer5] = useState("")
+
+  // Demographics
+  const [generation, setGeneration] = useState("")
+  const [role, setRole] = useState("")
+  const [department, setDepartment] = useState("")
+  const [industry, setIndustry] = useState("")
+  const [country, setCountry] = useState("")
 
   const motivators = [
     "Autonomy",
@@ -41,72 +54,24 @@ const CoreDriveApp = () => {
   }
 
   const intrinsicMotivators = ["Purpose", "Growth", "Autonomy", "Impact"]
-  const extrinsicMotivators = [
-    "Belonging",
-    "Collaboration",
-    "Dependability",
-    "Flexibility",
-    "Psychological Safety",
-    "Recognition",
-  ]
   const generationalGroups = ["Gen Z", "Millennial", "Gen X", "Baby Boomer"]
 
-  const qualitativeQuestions = [
-    {
-      id: "top3_reasoning",
-      question: "Please share why you have ranked your top 3 motivators in the way you did.",
-    },
-    {
-      id: "missing_motivator",
-      question:
-        "Is there a motivator that is important to you but was not included in the list above? If yes, please describe it and where it would rank.",
-    },
-    {
-      id: "current_role_alignment",
-      question: "How well do your top motivators show up in your current role?",
-    },
-    {
-      id: "recent_changes",
-      question:
-        "Has anything changed in your role, team, or environment in the past 3 months that affected how motivated you feel?",
-    },
-    {
-      id: "improvement_suggestions",
-      question: "What could help you feel more motivated at work right now?",
-    },
-  ]
-
-  // Arrow button functions (keeping as backup)
   const moveItem = (fromIndex, direction) => {
-    const newRankings = [...surveyData.rankings]
+    const newRankings = [...rankings]
     const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1
 
     if (toIndex >= 0 && toIndex < newRankings.length) {
       const item = newRankings[fromIndex]
       newRankings.splice(fromIndex, 1)
       newRankings.splice(toIndex, 0, item)
-      setSurveyData((prev) => ({ ...prev, rankings: newRankings }))
+      setRankings(newRankings)
     }
   }
 
   const initializeRankings = () => {
     const shuffled = [...motivators].sort(() => Math.random() - 0.5)
-    setSurveyData((prev) => ({ ...prev, rankings: shuffled }))
+    setRankings(shuffled)
     setCurrentStep("ranking")
-  }
-
-  const updateQualitative = useCallback((questionId, value) => {
-    setSurveyData((prev) => ({
-      ...prev,
-      qualitative: { ...prev.qualitative, [questionId]: value },
-    }))
-  }, [])
-
-  const updateDemographics = (field, value) => {
-    setSurveyData((prev) => ({
-      ...prev,
-      demographics: { ...prev.demographics, [field]: value },
-    }))
   }
 
   const generateRandomTeamCode = () => {
@@ -114,9 +79,9 @@ const CoreDriveApp = () => {
   }
 
   const generateIndividualReport = () => {
-    const top3 = surveyData.rankings.slice(0, 3)
+    const top3 = rankings.slice(0, 3)
     const intrinsicCount = top3.filter((m) => intrinsicMotivators.includes(m)).length
-    const extrinsicCount = top3.filter((m) => extrinsicMotivators.includes(m)).length
+    const extrinsicCount = top3.filter((m) => !intrinsicMotivators.includes(m)).length
 
     const insights = []
     if (top3.includes("Purpose")) {
@@ -320,17 +285,8 @@ const CoreDriveApp = () => {
         </div>
       )}
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <h3 className="font-medium text-blue-900 mb-2">Tips for ranking:</h3>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Click and drag any item to reorder, or use the arrow buttons</li>
-          <li>• Think about what truly energizes you at work, not just what you are good at</li>
-          <li>• Consider your ideal work environment, not necessarily your current one</li>
-        </ul>
-      </div>
-
       <div className="space-y-3 mb-8">
-        {surveyData.rankings.map((motivator, index) => (
+        {rankings.map((motivator, index) => (
           <div
             key={motivator}
             draggable
@@ -348,11 +304,11 @@ const CoreDriveApp = () => {
               const dropIndex = index
 
               if (draggedIndex !== dropIndex) {
-                const newRankings = [...surveyData.rankings]
+                const newRankings = [...rankings]
                 const draggedItem = newRankings[draggedIndex]
                 newRankings.splice(draggedIndex, 1)
                 newRankings.splice(dropIndex, 0, draggedItem)
-                setSurveyData((prev) => ({ ...prev, rankings: newRankings }))
+                setRankings(newRankings)
               }
             }}
             className="flex items-start gap-4 p-4 bg-white border-2 border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing hover:border-blue-300"
@@ -382,7 +338,7 @@ const CoreDriveApp = () => {
                   <ArrowUp size={16} />
                 </button>
               )}
-              {index < surveyData.rankings.length - 1 && (
+              {index < rankings.length - 1 && (
                 <button
                   onClick={() => moveItem(index, "down")}
                   className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
@@ -415,58 +371,68 @@ const CoreDriveApp = () => {
     </div>
   )
 
-  const QualitativeStep = () => {
-    const [responses, setResponses] = useState(surveyData.qualitative)
+  const QualitativeStep = () => (
+    <div className="max-w-3xl mx-auto">
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">Reflection Questions</h2>
+      <p className="text-gray-600 mb-8">
+        Help us understand your motivations better by answering these reflection questions.
+      </p>
 
-    const handleInputChange = (questionId, value) => {
-      const newResponses = { ...responses, [questionId]: value }
-      setResponses(newResponses)
-      setSurveyData((prev) => ({ ...prev, qualitative: newResponses }))
-    }
+      <div className="space-y-6">
+        <TextInputComponent
+          value={answer1}
+          onChange={(e) => setAnswer1(e.target.value)}
+          placeholder="Share your thoughts..."
+          label="1. Please share why you have ranked your top 3 motivators in the way you did."
+        />
 
-    return (
-      <div className="max-w-3xl mx-auto">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Reflection Questions</h2>
-        <p className="text-gray-600 mb-8">
-          Help us understand your motivations better by answering these reflection questions.
-        </p>
+        <TextInputComponent
+          value={answer2}
+          onChange={(e) => setAnswer2(e.target.value)}
+          placeholder="Share your thoughts..."
+          label="2. Is there a motivator that is important to you but was not included in the list above? If yes, please describe it and where it would rank."
+        />
 
-        <div className="space-y-6">
-          {qualitativeQuestions.map((q, index) => (
-            <div key={q.id} className="bg-white border border-gray-200 rounded-lg p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                {index + 1}. {q.question}
-              </label>
-              <textarea
-                defaultValue={responses[q.id] || ""}
-                onChange={(e) => handleInputChange(q.id, e.target.value)}
-                rows={4}
-                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                placeholder="Share your thoughts..."
-              />
-            </div>
-          ))}
-        </div>
+        <TextInputComponent
+          value={answer3}
+          onChange={(e) => setAnswer3(e.target.value)}
+          placeholder="Share your thoughts..."
+          label="3. How well do your top motivators show up in your current role?"
+        />
 
-        <div className="flex justify-between mt-8">
-          <button
-            onClick={() => setCurrentStep("ranking")}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-          >
-            <ChevronLeft size={20} />
-            Back
-          </button>
-          <button
-            onClick={() => setCurrentStep("demographics")}
-            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Continue
-            <ChevronRight size={20} />
-          </button>
-        </div>
+        <TextInputComponent
+          value={answer4}
+          onChange={(e) => setAnswer4(e.target.value)}
+          placeholder="Share your thoughts..."
+          label="4. Has anything changed in your role, team, or environment in the past 3 months that affected how motivated you feel?"
+        />
+
+        <TextInputComponent
+          value={answer5}
+          onChange={(e) => setAnswer5(e.target.value)}
+          placeholder="Share your thoughts..."
+          label="5. What could help you feel more motivated at work right now?"
+        />
       </div>
-    )
-  }
+
+      <div className="flex justify-between mt-8">
+        <button
+          onClick={() => setCurrentStep("ranking")}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+        >
+          <ChevronLeft size={20} />
+          Back
+        </button>
+        <button
+          onClick={() => setCurrentStep("demographics")}
+          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Continue
+          <ChevronRight size={20} />
+        </button>
+      </div>
+    </div>
+  )
 
   const DemographicsStep = () => (
     <div className="max-w-2xl mx-auto">
@@ -479,8 +445,8 @@ const CoreDriveApp = () => {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Generational Group</label>
           <select
-            value={surveyData.demographics.generation || ""}
-            onChange={(e) => updateDemographics("generation", e.target.value)}
+            value={generation}
+            onChange={(e) => setGeneration(e.target.value)}
             className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Select your generation</option>
@@ -496,8 +462,8 @@ const CoreDriveApp = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">Role/Title</label>
           <input
             type="text"
-            value={surveyData.demographics.role || ""}
-            onChange={(e) => updateDemographics("role", e.target.value)}
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
             className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="e.g., Software Engineer, Marketing Manager"
           />
@@ -507,8 +473,8 @@ const CoreDriveApp = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">Function/Department</label>
           <input
             type="text"
-            value={surveyData.demographics.function || ""}
-            onChange={(e) => updateDemographics("function", e.target.value)}
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
             className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="e.g., Engineering, Marketing, Sales"
           />
@@ -518,8 +484,8 @@ const CoreDriveApp = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">Industry</label>
           <input
             type="text"
-            value={surveyData.demographics.industry || ""}
-            onChange={(e) => updateDemographics("industry", e.target.value)}
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
             className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="e.g., Technology, Healthcare, Finance"
           />
@@ -529,8 +495,8 @@ const CoreDriveApp = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
           <input
             type="text"
-            value={surveyData.demographics.country || ""}
-            onChange={(e) => updateDemographics("country", e.target.value)}
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
             className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="e.g., United States, Canada, United Kingdom"
           />
@@ -556,84 +522,70 @@ const CoreDriveApp = () => {
     </div>
   )
 
-  const ReportsStep = () => {
-    return (
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-2xl font-bold text-gray-900 mb-8">Your Results</h2>
+  const ReportsStep = () => (
+    <div className="max-w-6xl mx-auto">
+      <h2 className="text-2xl font-bold text-gray-900 mb-8">Your Results</h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <button
-            onClick={() => setCurrentStep("individual-report")}
-            className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-left hover:bg-blue-100 transition-colors"
-          >
-            <BarChart3 className="text-blue-600 mb-3" size={32} />
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">Individual Report</h3>
-            <p className="text-blue-700 text-sm">Your personal motivation profile and insights for self-reflection</p>
-          </button>
-
-          {flowType === "team" && (
-            <button
-              onClick={() => setCurrentStep("team-report")}
-              className="bg-green-50 border border-green-200 rounded-lg p-6 text-left hover:bg-green-100 transition-colors"
-            >
-              <Users className="text-green-600 mb-3" size={32} />
-              <h3 className="text-lg font-semibold text-green-900 mb-2">Team Report</h3>
-              <p className="text-green-700 text-sm">Aggregated team patterns and potential hygiene factor risks</p>
-            </button>
-          )}
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <button
+          onClick={() => setCurrentStep("individual-report")}
+          className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-left hover:bg-blue-100 transition-colors"
+        >
+          <BarChart3 className="text-blue-600 mb-3" size={32} />
+          <h3 className="text-lg font-semibold text-blue-900 mb-2">Individual Report</h3>
+          <p className="text-blue-700 text-sm">Your personal motivation profile and insights for self-reflection</p>
+        </button>
 
         {flowType === "team" && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-8">
-            <div className="flex items-start gap-4">
-              <Crown className="text-purple-600 mt-1" size={24} />
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-purple-900 mb-2">Premium Leader/HR/OD Guide</h3>
-                <p className="text-purple-700 text-sm mb-4">
-                  Get strategic recommendations and actionable advice for leaders to enhance team motivation and
-                  performance.
-                </p>
-                <button
-                  onClick={() => setCurrentStep("premium-report")}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm"
-                >
-                  View Sample Report
-                </button>
-              </div>
-            </div>
-          </div>
+          <button
+            onClick={() => setCurrentStep("team-report")}
+            className="bg-green-50 border border-green-200 rounded-lg p-6 text-left hover:bg-green-100 transition-colors"
+          >
+            <Users className="text-green-600 mb-3" size={32} />
+            <h3 className="text-lg font-semibold text-green-900 mb-2">Team Report</h3>
+            <p className="text-green-700 text-sm">Aggregated team patterns and potential hygiene factor risks</p>
+          </button>
         )}
+      </div>
 
-        <div className="bg-gray-50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-3">Survey Complete!</h3>
-          <p className="text-gray-600 mb-4">
-            Thank you for completing the Core Drive Framework survey. Click on the report buttons above to explore your
-            results.
+      <div className="bg-gray-50 rounded-lg p-6">
+        <h3 className="text-lg font-semibold mb-3">Survey Complete!</h3>
+        <p className="text-gray-600 mb-4">
+          Thank you for completing the Core Drive Framework survey. Click on the report buttons above to explore your
+          results.
+        </p>
+        {flowType === "team" && (
+          <p className="text-sm text-gray-500 mb-4">
+            <strong>Team Code: {teamCode}</strong> - Share this with your team members so they can join the assessment.
           </p>
-          {flowType === "team" && (
-            <p className="text-sm text-gray-500 mb-4">
-              <strong>Team Code: {teamCode}</strong> - Share this with your team members so they can join the
-              assessment.
-            </p>
-          )}
-          <div className="flex gap-4">
-            <button
-              onClick={() => {
-                setCurrentStep("welcome")
-                setFlowType(null)
-                setTeamCode("")
-                setEmail("")
-                setSurveyData({ rankings: [], qualitative: {}, demographics: {} })
-              }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Start New Survey
-            </button>
-          </div>
+        )}
+        <div className="flex gap-4">
+          <button
+            onClick={() => {
+              setCurrentStep("welcome")
+              setFlowType(null)
+              setTeamCode("")
+              setEmail("")
+              setRankings([])
+              setAnswer1("")
+              setAnswer2("")
+              setAnswer3("")
+              setAnswer4("")
+              setAnswer5("")
+              setGeneration("")
+              setRole("")
+              setDepartment("")
+              setIndustry("")
+              setCountry("")
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Start New Survey
+          </button>
         </div>
       </div>
-    )
-  }
+    </div>
+  )
 
   const IndividualReportView = () => {
     const report = generateIndividualReport()
@@ -684,14 +636,6 @@ const CoreDriveApp = () => {
               <div className="text-sm text-gray-600 mb-4">
                 Top 3: {report.intrinsicCount} Intrinsic, {report.extrinsicCount} Extrinsic
               </div>
-              <div className="bg-gray-50 rounded p-4 text-sm text-left">
-                {report.motivationProfile === "Intrinsically Motivated" &&
-                  "You are primarily driven by internal factors like purpose, growth, and autonomy. You thrive when work feels meaningful and you have control over how you approach it."}
-                {report.motivationProfile === "Extrinsically Motivated" &&
-                  "You are motivated by external factors like recognition, belonging, and structured environments. You perform well with clear feedback and team connection."}
-                {report.motivationProfile === "Balanced" &&
-                  "You are motivated by both internal and external factors. This balance gives you flexibility to thrive in various work environments."}
-              </div>
             </div>
           </div>
         </div>
@@ -710,264 +654,43 @@ const CoreDriveApp = () => {
         <div className="bg-white border border-gray-200 rounded-lg p-6 mt-8">
           <h3 className="text-xl font-semibold mb-4">Your Reflections</h3>
           <div className="space-y-6">
-            {qualitativeQuestions.map((q) => (
-              <div key={q.id}>
-                <h4 className="font-medium text-gray-700 mb-2">{q.question}</h4>
-                <div className="text-gray-600 bg-gray-50 p-3 rounded min-h-[60px]">
-                  {surveyData.qualitative[q.id] || <span className="italic text-gray-400">No response provided</span>}
-                </div>
+            <div>
+              <h4 className="font-medium text-gray-700 mb-2">Why did you rank your top 3 motivators this way?</h4>
+              <div className="text-gray-600 bg-gray-50 p-3 rounded min-h-[60px]">
+                {answer1 || <span className="italic text-gray-400">No response provided</span>}
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
-  }
+            </div>
 
-  const PremiumReportView = () => {
-    const mockPremiumData = {
-      teamName: "Engineering Team Alpha",
-      riskAnalysis: {
-        high: ["Psychological Safety", "Recognition"],
-        medium: ["Dependability"],
-        low: [],
-      },
-      leadershipRecommendations: [
-        {
-          category: "Communication Strategy",
-          action: "Weekly 1:1s with focus on acknowledgment",
-          timeline: "Implement within 2 weeks",
-          impact: "High",
-        },
-        {
-          category: "Team Culture",
-          action: 'Establish "failure celebration" meetings',
-          timeline: "Monthly starting next month",
-          impact: "Medium",
-        },
-        {
-          category: "Process Improvement",
-          action: "Create predictable sprint planning process",
-          timeline: "Next quarter",
-          impact: "Medium",
-        },
-      ],
-      generationalInsights: {
-        "Gen Z": "Values rapid feedback and career growth visibility",
-        Millennial: "Seeks work-life integration and purpose alignment",
-        "Gen X": "Prefers autonomy and efficient processes",
-      },
-    }
-
-    return (
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => setCurrentStep("reports")} className="text-gray-600 hover:text-gray-800">
-            <ChevronLeft size={20} />
-          </button>
-          <h2 className="text-2xl font-bold text-gray-900">Leader/HR/OD Guide</h2>
-          <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">Premium</span>
-        </div>
-
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-8">
-          <h3 className="text-lg font-semibold text-purple-900 mb-2">Sample Premium Report</h3>
-          <p className="text-purple-700 text-sm">
-            This is a preview of the insights and recommendations available in the full premium report.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              Risk Analysis
-              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Critical</span>
-            </h3>
-
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium text-red-700 mb-2">High Risk Factors</h4>
-                <div className="space-y-2">
-                  {mockPremiumData.riskAnalysis.high.map((factor) => (
-                    <div key={factor} className="bg-red-50 border border-red-200 rounded p-3">
-                      <div className="font-medium text-red-800">{factor}</div>
-                      <div className="text-sm text-red-700 mt-1">
-                        {factor === "Psychological Safety"
-                          ? "67% of team ranked this low - risk of reduced innovation and speaking up"
-                          : "58% of team ranked this low - risk of disengagement and turnover"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <div>
+              <h4 className="font-medium text-gray-700 mb-2">Missing motivator from the list?</h4>
+              <div className="text-gray-600 bg-gray-50 p-3 rounded min-h-[60px]">
+                {answer2 || <span className="italic text-gray-400">No response provided</span>}
               </div>
+            </div>
 
-              <div>
-                <h4 className="font-medium text-yellow-700 mb-2">Medium Risk Factors</h4>
-                <div className="space-y-2">
-                  {mockPremiumData.riskAnalysis.medium.map((factor) => (
-                    <div key={factor} className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                      <div className="font-medium text-yellow-800">{factor}</div>
-                      <div className="text-sm text-yellow-700 mt-1">
-                        42% of team ranked this low - monitor for process inconsistencies
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <div>
+              <h4 className="font-medium text-gray-700 mb-2">
+                How well do your top motivators show up in your current role?
+              </h4>
+              <div className="text-gray-600 bg-gray-50 p-3 rounded min-h-[60px]">
+                {answer3 || <span className="italic text-gray-400">No response provided</span>}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium text-gray-700 mb-2">Recent changes affecting motivation?</h4>
+              <div className="text-gray-600 bg-gray-50 p-3 rounded min-h-[60px]">
+                {answer4 || <span className="italic text-gray-400">No response provided</span>}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium text-gray-700 mb-2">What could help you feel more motivated?</h4>
+              <div className="text-gray-600 bg-gray-50 p-3 rounded min-h-[60px]">
+                {answer5 || <span className="italic text-gray-400">No response provided</span>}
               </div>
             </div>
           </div>
-
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">Generational Insights</h3>
-            <div className="space-y-4">
-              {Object.entries(mockPremiumData.generationalInsights).map(([generation, insight]) => (
-                <div key={generation} className="border-l-4 border-blue-400 pl-4">
-                  <h4 className="font-medium text-blue-900">{generation}</h4>
-                  <p className="text-sm text-blue-800 mt-1">{insight}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
-          <h3 className="text-xl font-semibold mb-4">Strategic Action Plan</h3>
-          <div className="space-y-6">
-            {mockPremiumData.leadershipRecommendations.map((rec, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <h4 className="font-semibold text-gray-900">{rec.category}</h4>
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-medium ${
-                      rec.impact === "High" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {rec.impact} Impact
-                  </span>
-                </div>
-                <p className="text-gray-700 mb-2">{rec.action}</p>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span>📅 Timeline: {rec.timeline}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg p-6 text-center">
-          <h3 className="text-xl font-semibold mb-2">Upgrade to Premium</h3>
-          <p className="mb-4 text-purple-100">
-            Get the complete strategic guide with detailed action plans, risk mitigation strategies, and ongoing team
-            development recommendations.
-          </p>
-          <div className="flex justify-center gap-4">
-            <button className="bg-white text-purple-600 px-6 py-2 rounded-lg hover:bg-gray-100 font-medium">
-              Contact Sales
-            </button>
-            <button className="bg-purple-700 text-white px-6 py-2 rounded-lg hover:bg-purple-800 font-medium">
-              Start Free Trial
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const TeamReportView = () => {
-    const teamData = {
-      totalResponses: 12,
-      topTeamMotivators: ["Collaboration", "Growth", "Purpose"],
-      hygieneFactorRisks: ["Dependability", "Psychological Safety"],
-      generationalBreakdown: {
-        "Gen Z": 3,
-        Millennial: 5,
-        "Gen X": 3,
-        "Baby Boomer": 1,
-      },
-      teamCode: teamCode,
-    }
-
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => setCurrentStep("reports")} className="text-gray-600 hover:text-gray-800">
-            <ChevronLeft size={20} />
-          </button>
-          <h2 className="text-2xl font-bold text-gray-900">Team Report</h2>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
-          <h3 className="text-xl font-semibold mb-4">Team Overview</h3>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{teamData.totalResponses}</div>
-              <div className="text-sm text-gray-600">Team Members</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{teamData.topTeamMotivators.length}</div>
-              <div className="text-sm text-gray-600">Top Motivators</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-600">{teamData.hygieneFactorRisks.length}</div>
-              <div className="text-sm text-gray-600">Hygiene Risks</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {Object.keys(teamData.generationalBreakdown).length}
-              </div>
-              <div className="text-sm text-gray-600">Generations</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">Top Team Motivators</h3>
-            <div className="space-y-3">
-              {teamData.topTeamMotivators.map((motivator, index) => (
-                <div key={motivator} className="flex items-center gap-3">
-                  <span className="bg-green-100 text-green-800 font-semibold px-3 py-1 rounded-full text-sm min-w-[2rem] text-center">
-                    {index + 1}
-                  </span>
-                  <span className="font-medium">{motivator}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">Potential Hygiene Factor Risks</h3>
-            <div className="space-y-3 mb-4">
-              {teamData.hygieneFactorRisks.map((risk) => (
-                <div key={risk} className="flex items-center gap-3">
-                  <span className="bg-yellow-100 text-yellow-800 font-semibold px-3 py-1 rounded-full text-sm">!</span>
-                  <span className="font-medium">{risk}</span>
-                </div>
-              ))}
-            </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-4 text-sm">
-              <strong>Note:</strong> These factors may be taken for granted by the team. While not actively motivating,
-              their absence could cause significant dissatisfaction.
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-6 mt-8">
-          <h3 className="text-xl font-semibold mb-4">Generational Breakdown</h3>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {Object.entries(teamData.generationalBreakdown).map(([generation, count]) => (
-              <div key={generation} className="text-center p-4 bg-gray-50 rounded">
-                <div className="text-xl font-bold text-gray-700">{count}</div>
-                <div className="text-sm text-gray-600">{generation}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-8">
-          <h4 className="font-semibold text-green-900 mb-2">Team Code: {teamData.teamCode}</h4>
-          <p className="text-sm text-green-700">
-            Continue sharing this code with team members to build a more complete team picture.
-          </p>
         </div>
       </div>
     )
@@ -989,10 +712,6 @@ const CoreDriveApp = () => {
         return <ReportsStep />
       case "individual-report":
         return <IndividualReportView />
-      case "team-report":
-        return <TeamReportView />
-      case "premium-report":
-        return <PremiumReportView />
       default:
         return <WelcomeScreen />
     }
