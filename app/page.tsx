@@ -1,8 +1,6 @@
 "use client"
-
-import type React from "react"
 import { useState, useEffect } from "react"
-import { createClient } from "@/utils/supabase/client"
+import { supabase } from "@/utils/supabase/client"
 
 export default function CoreDriveApp() {
   const [currentStep, setCurrentStep] = useState("welcome")
@@ -41,11 +39,11 @@ export default function CoreDriveApp() {
 
   // Added authentication state variables
   // const [showAuthModal, setShowAuthModal] = useState(false)
-  // const [authMode, setAuthMode] = useState<"signin" | "signup">("signin")
+  // const [authMode, setAuthMode, setAuthPassword] = useState<"signin" | "signup">("signin")
   // const [user, setUser] = useState<any>(null)
   // const [authLoading, setAuthLoading] = useState(false)
-  // const [authEmail, setAuthEmail] = useState("")
-  // const [authPassword, setAuthPassword] = useState("")
+  // const [authEmail, setAuthEmail] => useState("")
+  // const [authPassword, setAuthPassword] => useState("")
 
   const [setDemographics] = useState({})
   const [setQualitativeAnswers] = useState({})
@@ -78,13 +76,8 @@ export default function CoreDriveApp() {
     setSaveStatus("saved")
   }
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setAuthLoading(true)
-
+  const handleAuth = async () => {
     try {
-      const supabase = createClient()
-
       if (authMode === "reset") {
         const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -128,7 +121,6 @@ export default function CoreDriveApp() {
   }
 
   const handleSignOut = async () => {
-    const supabase = createClient()
     await supabase.auth.signOut()
     setUser(null)
   }
@@ -147,6 +139,43 @@ export default function CoreDriveApp() {
     }
   }
 
+  const loadAssessmentData = async (assessmentIdToLoad) => {
+    try {
+      const response = await fetch(`/api/assessments/${assessmentIdToLoad}`)
+      if (response.ok) {
+        const assessment = await response.json()
+        setFlowType(assessment.flow_type)
+        setGeneration(assessment.age_range || "")
+        setRole(assessment.years_experience || "")
+        setDepartment(assessment.role_level || "")
+        setIndustry(assessment.industry || "")
+        setCountry("")
+        setTeamCode(assessment.team_name || "")
+        setRankings(assessment.ranking_data || [])
+        setAnswer1(assessment.qualitative_responses?.[0] || "")
+        setAnswer2(assessment.qualitative_responses?.[1] || "")
+        setAnswer3(assessment.qualitative_responses?.[2] || "")
+        setAnswer4(assessment.qualitative_responses?.[3] || "")
+        setAnswer5(assessment.qualitative_responses?.[4] || "")
+      }
+    } catch (error) {
+      console.error("Error loading assessment data:", error)
+    }
+  }
+
+  useEffect(() => {
+    if (
+      (currentStep === "reports-selection" ||
+        currentStep === "team-report" ||
+        currentStep === "individual-report" ||
+        currentStep === "leader-guide") &&
+      assessmentId &&
+      !teamCode
+    ) {
+      loadAssessmentData(assessmentId)
+    }
+  }, [currentStep, assessmentId])
+
   useEffect(() => {
     if (user && currentStep === "profile") {
       loadUserAssessments()
@@ -154,8 +183,6 @@ export default function CoreDriveApp() {
   }, [user, currentStep])
 
   useEffect(() => {
-    const supabase = createClient()
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
     })
@@ -364,14 +391,17 @@ export default function CoreDriveApp() {
   const startSurvey = (type: "individual" | "team") => {
     if (!user) {
       alert("Please sign in to take the activity")
-      setShowAuthModal(true)
       return
     }
-
     resetAllFormData() // Clear all previous data
     setFlowType(type)
-    initializeRankings()
-    setCurrentStep("ranking")
+
+    if (type === "team") {
+      setCurrentStep("team-setup") // Go to team setup first for team assessments
+    } else {
+      initializeRankings()
+      setCurrentStep("ranking") // Go directly to ranking for individual assessments
+    }
   }
 
   const handleDragStart = (e, index) => {
@@ -424,8 +454,7 @@ export default function CoreDriveApp() {
           <div className="flex items-center gap-3">
             <button onClick={() => setCurrentStep("welcome")} className="flex items-center gap-3 hover:opacity-80">
               <img src="/bespoke-mind-logo.png" alt="Bespoke Mind" className="h-8 w-8" />
-              {/* Changed "Core Drive Survey" to "Core Drive Activity" */}
-              <h1 className="text-xl font-bold text-gray-900">Core Drive Activity</h1>
+              <h1 className="text-xl font-bold text-gray-900">Core Drive</h1>
             </button>
           </div>
 
@@ -479,32 +508,53 @@ export default function CoreDriveApp() {
 
       {/* Welcome Screen */}
       <div className={currentStep === "welcome" ? "block" : "hidden"}>
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="text-center mb-8">
-            {/* Updated main heading and description to use "activity" terminology */}
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Core Drive Activity</h1>
-            <p className="text-xl text-gray-600 mb-8">
-              Discover what motivates you and your team using the Core Drive framework
+        <div className="text-center py-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Core Drive Framework</h1>
+          <p className="text-xl text-gray-600 mb-12">
+            Discover what motivates you at work and help create environments that align with those drivers.
+          </p>
+
+          <div className="mb-12 max-w-2xl mx-auto text-left">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">What You Will Do:</h3>
+            <ul className="space-y-3 text-gray-700">
+              <li>• Rank 10 core workplace motivators by importance to you</li>
+              <li>• Answer reflection questions about your work experience</li>
+              <li>• Provide basic demographic information</li>
+              <li>• Receive personalized insights and recommendations</li>
+            </ul>
+            <p className="text-sm text-gray-500 mt-8 text-center">
+              Survey takes approximately 8-10 minutes. All responses are confidential.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-            {/* Updated individual survey button to use startSurvey function */}
-            <button
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div
               onClick={() => startSurvey("individual")}
-              className="bg-blue-600 text-white p-6 rounded-lg hover:bg-blue-700 transition-colors"
+              className="bg-blue-50 border border-blue-200 p-8 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
             >
-              <h3 className="text-xl font-semibold mb-2">Individual</h3>
-              <p className="text-blue-100">Take the activity for yourself</p>
-            </button>
+              <div className="text-blue-600 text-4xl mb-4">📊</div>
+              <h2 className="text-2xl font-bold text-blue-900 mb-4">Individual Assessment</h2>
+              <p className="text-gray-600 mb-6">
+                Get personal insights about your work motivators and receive an individual report.
+              </p>
+              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 w-full">
+                Start Individual Survey
+              </button>
+            </div>
 
-            <button
+            <div
               onClick={() => startSurvey("team")}
-              className="bg-green-600 text-white p-6 rounded-lg hover:bg-green-700 transition-colors"
+              className="bg-green-50 border border-green-200 p-8 rounded-lg cursor-pointer hover:bg-green-100 transition-colors"
             >
-              <h3 className="text-xl font-semibold mb-2">Team</h3>
-              <p className="text-green-100">Assess your team's motivation drivers</p>
-            </button>
+              <div className="text-green-600 text-4xl mb-4">👥</div>
+              <h2 className="text-2xl font-bold text-green-900 mb-4">Team Assessment</h2>
+              <p className="text-gray-600 mb-6">
+                Join your team assessment to see both individual and team-level insights.
+              </p>
+              <button className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 w-full">
+                Join Team Survey
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -547,10 +597,18 @@ export default function CoreDriveApp() {
                         onClick={() => {
                           // Load this assessment data
                           setFlowType(assessment.flow_type)
-                          setDemographics(assessment.demographics || {})
-                          setQualitativeAnswers(assessment.qualitative_responses || {})
-                          setRankings(assessment.rankings || [])
-                          setTeamMembers(assessment.team_members || [])
+                          setGeneration(assessment.age_range || "")
+                          setRole(assessment.years_experience || "")
+                          setDepartment(assessment.role_level || "")
+                          setIndustry(assessment.industry || "")
+                          setCountry("")
+                          setTeamCode(assessment.team_name || "")
+                          setRankings(assessment.ranking_data || [])
+                          setAnswer1(assessment.qualitative_responses?.[0] || "")
+                          setAnswer2(assessment.qualitative_responses?.[1] || "")
+                          setAnswer3(assessment.qualitative_responses?.[2] || "")
+                          setAnswer4(assessment.qualitative_responses?.[3] || "")
+                          setAnswer5(assessment.qualitative_responses?.[4] || "")
                           setCurrentStep("reports-selection")
                         }}
                         className="text-blue-600 hover:text-blue-800 text-sm"
@@ -558,9 +616,10 @@ export default function CoreDriveApp() {
                         View Reports
                       </button>
                     </div>
-                    {assessment.demographics?.name && (
-                      <p className="text-sm text-gray-600">Name: {assessment.demographics.name}</p>
+                    {assessment.age_range && (
+                      <p className="text-sm text-gray-600">Generation: {assessment.age_range}</p>
                     )}
+                    {assessment.team_name && <p className="text-sm text-gray-600">Team Name: {assessment.team_name}</p>}
                     {assessment.team_members?.length > 0 && (
                       <p className="text-sm text-gray-600">Team Size: {assessment.team_members.length} members</p>
                     )}
@@ -750,81 +809,109 @@ export default function CoreDriveApp() {
 
         {/* Team Setup Screen */}
         <div className={currentStep === "team-setup" ? "block" : "hidden"}>
-          <div className="space-y-6">
+          <div className="max-w-md mx-auto space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Assessment Setup</h2>
-              <p className="text-gray-600">Join an existing team or create a new team assessment.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Join Existing Team</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Team Code</label>
-                    <input
-                      type="text"
-                      value={teamCode}
-                      onChange={(e) => setTeamCode(e.target.value.toUpperCase())}
-                      placeholder="Enter team code"
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  {/* Updated team survey buttons to reset form data */}
-                  <button
-                    onClick={() => {
-                      if (teamCode.trim()) {
-                        resetAllFormData()
-                        setFlowType("team")
-                        initializeRankings()
-                        setCurrentStep("ranking")
-                      }
-                    }}
-                    disabled={!teamCode.trim()}
-                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    Join Team
-                  </button>
-                </div>
-              </div>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Code</h3>
+                <p className="text-gray-600 mb-4">
+                  <strong>Team Leaders:</strong> Generate a new team code to share with your team members.
+                  <br />
+                  <strong>Team Members:</strong> Enter the team code provided by your team leader.
+                </p>
 
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Team</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Your Email</label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="team-leader@company.com"
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  {/* Updated team survey buttons to reset form data */}
-                  <button
-                    onClick={() => {
-                      if (email.trim()) {
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={teamCode}
+                    onChange={(e) => setTeamCode(e.target.value.toUpperCase())}
+                    placeholder="ENTER TEAM CODE"
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-mono tracking-wider text-lg"
+                  />
+
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => {
                         const newTeamCode = generateRandomTeamCode()
                         setTeamCode(newTeamCode)
-                        resetAllFormData()
-                        setFlowType("team")
-                        initializeRankings()
-                        setCurrentStep("ranking")
-                      }
-                    }}
-                    disabled={!email.trim()}
-                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    Create Team
-                  </button>
+                      }}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      Generate Team Code
+                    </button>
+                  </div>
+
+                  {teamCode && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <p className="text-green-800 text-sm text-center mb-2">
+                        <strong>Share this code with your team:</strong>
+                      </p>
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="font-mono text-lg font-semibold text-green-900">{teamCode}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(teamCode)
+                            // Simple feedback - could be enhanced with toast notification
+                            const button = event.target as HTMLButtonElement
+                            const originalText = button.innerHTML
+                            button.innerHTML = "✓"
+                            setTimeout(() => {
+                              button.innerHTML = originalText
+                            }, 1000)
+                          }}
+                          className="bg-green-600 text-white p-1 rounded hover:bg-green-700 transition-colors"
+                          title="Copy team code"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Work Email Address</h3>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your.name@company.com"
+                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
             </div>
 
-            <div className="text-center">
-              <button onClick={() => setCurrentStep("welcome")} className="text-blue-600 hover:text-blue-800">
-                ← Back to Welcome
+            <div className="flex justify-between pt-6">
+              <button
+                onClick={() => setCurrentStep("welcome")}
+                className="flex items-center text-gray-600 hover:text-gray-800"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={() => {
+                  if (email.trim() && teamCode.trim()) {
+                    resetAllFormData()
+                    setFlowType("team")
+                    initializeRankings()
+                    setCurrentStep("ranking")
+                  }
+                }}
+                disabled={!email.trim() || !teamCode.trim()}
+                className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Continue →
               </button>
             </div>
           </div>
@@ -1014,7 +1101,7 @@ export default function CoreDriveApp() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Generation</label>
                 <select
@@ -1087,13 +1174,13 @@ export default function CoreDriveApp() {
                   <option value="Manufacturing">Manufacturing</option>
                   <option value="Consulting">Consulting</option>
                   <option value="Media">Media</option>
-                  <option value="Non-profit">Non-profit</option>
                   <option value="Government">Government</option>
+                  <option value="Non-profit">Non-profit</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
                 <select
                   value={country}
@@ -1109,20 +1196,26 @@ export default function CoreDriveApp() {
                   <option value="France">France</option>
                   <option value="Netherlands">Netherlands</option>
                   <option value="Singapore">Singapore</option>
+                  <option value="India">India</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
             </div>
 
-            <div className="flex justify-between">
-              <button onClick={() => setCurrentStep("qualitative")} className="text-blue-600 hover:text-blue-800">
+            <div className="flex justify-between pt-6">
+              <button
+                onClick={() => setCurrentStep("qualitative")}
+                className="text-blue-600 hover:text-blue-800 flex items-center"
+              >
                 ← Back
               </button>
               <button
-                onClick={() => setCurrentStep("reports-selection")}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                onClick={() => {
+                  setCurrentStep("reports-selection")
+                }}
+                className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700"
               >
-                Complete Assessment
+                Submit
               </button>
             </div>
           </div>
@@ -1132,16 +1225,16 @@ export default function CoreDriveApp() {
         <div className={currentStep === "reports-selection" ? "block" : "hidden"}>
           <div className="space-y-6">
             <div className="text-center">
-              {/* Updated reports heading to use "activity" */}
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Activity Reports</h2>
-              <p className="text-gray-600 mb-6">Choose which report you'd like to view:</p>
+              <p className="text-gray-600">Choose which report you'd like to view based on your responses.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-blue-900 mb-3">Individual Report</h3>
-                <p className="text-blue-800 text-sm mb-4">
-                  Your personal motivation profile with insights and recommendations.
+              <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Individual Report</h3>
+                <p className="text-gray-600 mb-4">
+                  Get personalized insights about your work motivators and recommendations for enhancing your work
+                  experience.
                 </p>
                 <button
                   onClick={() => setCurrentStep("individual-report")}
@@ -1152,310 +1245,193 @@ export default function CoreDriveApp() {
               </div>
 
               {flowType === "team" && (
-                <>
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-green-900 mb-3">Team Report</h3>
-                    <p className="text-green-800 text-sm mb-4">Aggregated team insights and motivation patterns.</p>
-                    <button
-                      onClick={() => setCurrentStep("team-report")}
-                      className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                    >
-                      View Team Report
-                    </button>
-                  </div>
+                <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Team Report</h3>
+                  <p className="text-gray-600 mb-4">
+                    Understand your team's collective motivators and identify opportunities for team alignment.
+                  </p>
+                  <button
+                    onClick={() => setCurrentStep("team-report")}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                  >
+                    View Team Report
+                  </button>
+                </div>
+              )}
 
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-purple-900 mb-3">Leader Guide</h3>
-                    <p className="text-purple-800 text-sm mb-4">
-                      Strategic insights and action plans for team leaders.
-                    </p>
-                    <button
-                      onClick={() => setCurrentStep("leader-guide")}
-                      className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
-                    >
-                      View Leader Guide
-                    </button>
-                  </div>
-                </>
+              {flowType === "team" && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Leader Guide</h3>
+                  <p className="text-gray-600 mb-4">
+                    Access strategic insights and action plans for leaders, HR professionals, and organizational
+                    development.
+                  </p>
+                  <button
+                    onClick={() => setCurrentStep("leader-guide")}
+                    className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+                  >
+                    View Leader Guide
+                  </button>
+                </div>
               )}
             </div>
 
-            <div className="text-center pt-6 border-t border-gray-200">
+            <div className="text-center pt-6">
               <button
                 onClick={() => {
-                  resetForm()
                   setCurrentStep("welcome")
+                  setFlowType(null)
+                  setTeamCode("")
+                  setEmail("")
+                  setRankings([])
+                  setAnswer1("")
+                  setAnswer2("")
+                  setAnswer3("")
+                  setAnswer4("")
+                  setAnswer5("")
+                  setGeneration("")
+                  setRole("")
+                  setDepartment("")
+                  setIndustry("")
+                  setCountry("")
+                  setAssessmentId(null)
+                  setSaveStatus("saved")
+                  setLastSaved(null)
                 }}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-medium"
+                className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700"
               >
-                {/* Renamed "Start New Survey" to "Home" */}
                 Home
               </button>
             </div>
           </div>
         </div>
 
-        {/* Individual Report Screen */}
         <div className={currentStep === "individual-report" ? "block" : "hidden"}>
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Your Individual Report</h2>
+              <p className="text-gray-600">Based on your responses, here are your personalized insights.</p>
             </div>
 
-            {(() => {
-              const report = generateIndividualReport()
-              return (
-                <div className="space-y-6">
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Top 3 Motivators</h3>
-                    <div className="space-y-3">
-                      {report.topMotivators.map((motivator, index) => (
-                        <div key={index} className="flex items-center space-x-3">
-                          <div className="bg-blue-100 text-blue-800 rounded-full w-8 h-8 flex items-center justify-center font-semibold">
-                            {index + 1}
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900">{motivator}</h4>
-                            <p className="text-sm text-gray-600">{motivatorDefinitions[motivator]}</p>
-                          </div>
-                        </div>
-                      ))}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Your Top Motivators</h3>
+              <div className="space-y-3">
+                {rankings.slice(0, 3).map((motivator, index) => (
+                  <div key={motivator.id} className="flex items-center space-x-3">
+                    <div className="bg-blue-100 text-blue-800 rounded-full w-8 h-8 flex items-center justify-center font-semibold">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">{motivator.text}</h4>
+                      <p className="text-sm text-gray-600">{motivatorDefinitions[motivator.text]}</p>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
 
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Motivation Profile</h3>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600 mb-2">{report.motivationProfile}</div>
-                      <p className="text-gray-600 mb-4">
-                        {report.motivationProfile === "Intrinsically Motivated"
-                          ? "You are primarily driven by internal satisfaction and personal growth."
-                          : report.motivationProfile === "Extrinsically Motivated"
-                            ? "You are primarily motivated by external rewards and recognition."
-                            : "You have a balanced mix of intrinsic and extrinsic motivators."}
-                      </p>
-                      <div className="flex justify-center space-x-8">
-                        <div className="text-center">
-                          <div className="text-xl font-semibold text-green-600">{report.intrinsicCount}</div>
-                          <div className="text-sm text-gray-600">Intrinsic</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-xl font-semibold text-orange-600">{report.extrinsicCount}</div>
-                          <div className="text-sm text-gray-600">Extrinsic</div>
-                        </div>
-                      </div>
-                    </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Personalized Insights</h3>
+              <div className="space-y-4">
+                {rankings.slice(0, 3).map((motivator, index) => (
+                  <div key={motivator.id} className="border-l-4 border-blue-500 pl-4">
+                    <h4 className="font-medium text-gray-900">{motivator.text}</h4>
+                    <p className="text-gray-600 text-sm mt-1">
+                      This is a key driver for you. Consider discussing with your manager how to incorporate more of
+                      this into your daily work.
+                    </p>
                   </div>
+                ))}
+              </div>
+            </div>
 
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Personalized Insights</h3>
-                    <div className="space-y-3">
-                      {report.insights.map((insight, index) => (
-                        <div key={index} className="flex items-start space-x-3">
-                          <div className="bg-yellow-100 text-yellow-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mt-0.5">
-                            💡
-                          </div>
-                          <p className="text-gray-700">{insight}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-
-            <div className="flex justify-between">
-              <button onClick={() => setCurrentStep("reports-selection")} className="text-blue-600 hover:text-blue-800">
-                ← Back to Reports
-              </button>
+            <div className="text-center">
               <button
-                onClick={() => window.print()}
+                onClick={() => setCurrentStep("reports-selection")}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
               >
-                Print Report
+                Back to Reports
               </button>
             </div>
           </div>
         </div>
 
-        {/* Team Report Screen */}
         <div className={currentStep === "team-report" ? "block" : "hidden"}>
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Report</h2>
-              <p className="text-gray-600">Team Code: {teamCode}</p>
+              <p className="text-gray-600">Collective insights for your team.</p>
             </div>
 
-            <div className="space-y-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Overview</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">1</div>
-                    <div className="text-sm text-gray-600">Team Members</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">Mixed</div>
-                    <div className="text-sm text-gray-600">Motivation Profile</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">High</div>
-                    <div className="text-sm text-gray-600">Engagement Potential</div>
-                  </div>
-                </div>
-              </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Team Overview</h3>
+              <p className="text-gray-600">
+                Team Code: <span className="font-mono font-semibold text-lg">{teamCode || "Not Available"}</span>
+              </p>
+            </div>
 
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Team Motivators</h3>
-                <div className="space-y-3">
-                  {rankings.slice(0, 5).map((motivator, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-blue-100 text-blue-800 rounded-full w-8 h-8 flex items-center justify-center font-semibold">
-                          {index + 1}
-                        </div>
-                        <span className="font-medium">{motivator.text}</span>
-                      </div>
-                      <div className="text-sm text-gray-600">100% alignment</div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Your Contribution</h3>
+              <div className="space-y-3">
+                {rankings.slice(0, 3).map((motivator, index) => (
+                  <div key={motivator.id} className="flex items-center space-x-3">
+                    <div className="bg-green-100 text-green-800 rounded-full w-8 h-8 flex items-center justify-center font-semibold">
+                      {index + 1}
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Potential Hygiene Risks</h3>
-                <div className="space-y-3">
-                  {rankings.slice(-3).map((motivator, index) => (
-                    <div key={index} className="flex items-start space-x-3">
-                      <div className="bg-red-100 text-red-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mt-0.5">
-                        ⚠️
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{motivator.text}</div>
-                        <div className="text-sm text-gray-600">
-                          Low priority for team - monitor for potential dissatisfaction
-                        </div>
-                      </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">{motivator.text}</h4>
+                      <p className="text-sm text-gray-600">{motivatorDefinitions[motivator.text]}</p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="flex justify-between">
-              <button onClick={() => setCurrentStep("reports-selection")} className="text-blue-600 hover:text-blue-800">
-                ← Back to Reports
-              </button>
+            <div className="text-center">
               <button
-                onClick={() => window.print()}
+                onClick={() => setCurrentStep("reports-selection")}
                 className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
               >
-                Print Team Report
+                Back to Reports
               </button>
             </div>
           </div>
         </div>
 
-        {/* Leader Guide Screen */}
         <div className={currentStep === "leader-guide" ? "block" : "hidden"}>
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Leader Guide</h2>
-              <p className="text-gray-600">Strategic insights and action plans for team leaders</p>
+              <p className="text-gray-600">Strategic insights and action plans for team leaders.</p>
             </div>
 
-            <div className="space-y-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🎯 Key Risk Areas</h3>
-                <div className="space-y-4">
-                  <div className="border-l-4 border-red-400 pl-4">
-                    <h4 className="font-medium text-gray-900">Motivation Misalignment</h4>
-                    <p className="text-sm text-gray-600">
-                      Team members may have different motivation drivers. Regular check-ins recommended.
-                    </p>
-                  </div>
-                  <div className="border-l-4 border-yellow-400 pl-4">
-                    <h4 className="font-medium text-gray-900">Hygiene Factor Neglect</h4>
-                    <p className="text-sm text-gray-600">
-                      Low-ranked motivators still need basic attention to prevent dissatisfaction.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Team Leadership Insights</h3>
+              <p className="text-gray-600 mb-4">Based on your team's responses, here are key areas to focus on:</p>
 
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">👥 Generational Insights</h3>
-                <div className="space-y-3">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-blue-900">Your Team Profile</h4>
-                    <p className="text-sm text-blue-800">
-                      Based on demographics: {generation || "Mixed generation"} team with {role || "varied"} experience
-                      levels.
-                    </p>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    <strong>Recommendation:</strong> Tailor communication and recognition approaches to match
-                    generational preferences.
-                  </div>
+              <div className="space-y-4">
+                <div className="border-l-4 border-purple-500 pl-4">
+                  <h4 className="font-medium text-gray-900">Focus Areas</h4>
+                  <p className="text-gray-600 text-sm mt-1">
+                    Review your team's top motivators and create action plans to enhance these areas.
+                  </p>
                 </div>
-              </div>
 
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 30-60-90 Day Action Plan</h3>
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium text-green-700">30 Days: Foundation</h4>
-                    <ul className="text-sm text-gray-600 ml-4 mt-1 space-y-1">
-                      <li>• Schedule 1:1s with each team member to discuss their top motivators</li>
-                      <li>• Review current recognition and reward systems</li>
-                      <li>• Identify quick wins for top team motivators</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-blue-700">60 Days: Implementation</h4>
-                    <ul className="text-sm text-gray-600 ml-4 mt-1 space-y-1">
-                      <li>• Implement personalized motivation strategies</li>
-                      <li>• Address any hygiene factor gaps</li>
-                      <li>• Establish regular feedback mechanisms</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-purple-700">90 Days: Optimization</h4>
-                    <ul className="text-sm text-gray-600 ml-4 mt-1 space-y-1">
-                      <li>• Measure engagement and satisfaction improvements</li>
-                      <li>• Refine approaches based on feedback</li>
-                      <li>• Plan for long-term motivation sustainability</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🔧 Practical Tools</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900">Weekly Check-in Template</h4>
-                    <p className="text-sm text-gray-600">
-                      "What energized you most this week? What drained your energy?"
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900">Recognition Framework</h4>
-                    <p className="text-sm text-gray-600">Match recognition style to individual motivator preferences</p>
-                  </div>
+                <div className="border-l-4 border-purple-500 pl-4">
+                  <h4 className="font-medium text-gray-900">Development Opportunities</h4>
+                  <p className="text-gray-600 text-sm mt-1">
+                    Identify gaps between individual and team motivators to create targeted development plans.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between">
-              <button onClick={() => setCurrentStep("reports-selection")} className="text-blue-600 hover:text-blue-800">
-                ← Back to Reports
-              </button>
+            <div className="text-center">
               <button
-                onClick={() => window.print()}
+                onClick={() => setCurrentStep("reports-selection")}
                 className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
               >
-                Print Leader Guide
+                Back to Reports
               </button>
             </div>
           </div>
